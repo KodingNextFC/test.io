@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clustering Journey — Treasure Hunt Summary</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#FFFDF5;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:24px 16px 60px 16px;}
+  .header{
+    background:#FFFFFF;border-radius:18px;padding:22px 24px;
+    box-shadow:0 8px 20px rgba(0,0,0,.08);margin-bottom:10px;
+  }
+  h1{margin:0;color:#D97706;font-size:24px;font-weight:bold;}
+  .header p{color:#4B5563;font-size:14px;line-height:1.6;margin:8px 0 0 0;}
+  .progress-row{display:flex;align-items:center;gap:10px;margin-top:14px;}
+  .progress-track{flex:1;background:#F3E8C7;border-radius:999px;height:9px;overflow:hidden;}
+  .progress-fill{background:#D97706;height:100%;border-radius:999px;transition:width .4s ease;}
+  .progress-text{font-size:12.5px;font-weight:bold;color:#92400E;white-space:nowrap;}
+
+  /* ---- journey track ---- */
+  .journey-track{position:relative;margin-top:20px;padding:10px 0;}
+  .journey-line{
+    position:absolute;left:50%;top:0;bottom:0;width:0;
+    border-left:3px dashed #E5D9B0;transform:translateX(-50%);z-index:0;
+  }
+  .node-row{position:relative;z-index:1;display:flex;margin-bottom:14px;}
+  .node-row.left{justify-content:flex-start;}
+  .node-row.right{justify-content:flex-end;}
+  .node-col{display:flex;flex-direction:column;align-items:center;width:52%;}
+  .node-row.left .node-col{align-items:flex-start;padding-left:6%;}
+  .node-row.right .node-col{align-items:flex-end;padding-right:6%;}
+
+  .chest-btn{
+    position:relative;width:64px;height:56px;border-radius:12px;border:3px solid #C9A94E;
+    background:#EFE3C0;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 0 rgba(0,0,0,.08);padding:0;
+  }
+  .chest-btn.opened{background:#FFF3C4;border-color:#D97706;}
+  .chest-btn svg{width:34px;height:30px;}
+  .chest-num{
+    position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;
+    background:#D97706;color:#fff;font-size:11.5px;font-weight:bold;
+    display:flex;align-items:center;justify-content:center;border:2px solid #fff;
+  }
+  .chest-btn.opened .chest-num{background:#059669;}
+  .node-label{font-size:12.5px;font-weight:bold;color:#374151;margin-top:8px;max-width:170px;line-height:1.4;}
+  .node-row.left .node-label{text-align:left;}
+  .node-row.right .node-label{text-align:right;}
+
+  .summary-card{
+    display:none;margin-top:10px;max-width:230px;background:#FFFFFF;border:2px solid #F4B400;
+    border-left:5px solid #F4B400;border-radius:10px;padding:12px 14px;font-size:13px;
+    color:#4B5563;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,.06);
+  }
+  .summary-card.show{display:block;}
+
+  /* ---- completion card ---- */
+  .complete-card{
+    display:none;background:#FFFFFF;border-radius:18px;padding:26px;margin-top:24px;
+    box-shadow:0 8px 20px rgba(0,0,0,.08);
+  }
+  .complete-card.show{display:block;}
+  .complete-card h2{margin:0;color:#D97706;font-size:20px;}
+  .recap-item{margin-top:14px;padding-bottom:12px;border-bottom:1px solid #F3E8C7;}
+  .recap-item:last-child{border-bottom:none;}
+  .recap-num{
+    display:inline-flex;width:20px;height:20px;border-radius:50%;background:#D97706;color:#fff;
+    font-size:11px;font-weight:bold;align-items:center;justify-content:center;margin-right:8px;
+  }
+  .recap-title{font-weight:bold;font-size:13.5px;color:#374151;}
+  .recap-text{font-size:13px;color:#4B5563;line-height:1.6;margin-top:4px;margin-left:28px;}
+  .btn{
+    padding:10px 18px;border-radius:9px;border:2px solid #D97706;background:#D97706;
+    color:#fff;font-size:13.5px;font-weight:bold;cursor:pointer;margin-top:16px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>The Clustering Journey</h1>
+    <p>Walk the path and open each treasure chest to collect a key idea from unsupervised learning, KNN, K-Means, K-Modes, and K-Prototypes.</p>
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+      <div class="progress-text" id="progressText">0 / 8 found</div>
+    </div>
+  </div>
+
+  <div class="journey-track" id="journeyTrack">
+    <div class="journey-line"></div>
+  </div>
+
+  <div class="complete-card" id="completeCard">
+    <h2>Journey Complete!</h2>
+    <p style="color:#4B5563;font-size:13.5px;margin-top:6px;">You've collected all 8 ideas. Here's the full recap:</p>
+    <div id="recapList"></div>
+    <button class="btn" id="restartBtn">Start Over</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+  var STOPS = [
+    {
+      title:"Supervised vs Unsupervised",
+      text:"Supervised learning trains on labeled data to predict an answer. Unsupervised learning \u2014 like clustering \u2014 has no labels at all; it groups data based on similarity alone."
+    },
+    {
+      title:"KNN Classifier",
+      text:"KNN classifies a new data point by checking its K nearest neighbors and taking a majority vote. It needs labeled data to work, since it's a supervised method."
+    },
+    {
+      title:"K-Means Clustering",
+      text:"K-Means groups numeric data into K clusters. Each point joins its nearest centroid, then every centroid moves to the mean position of its members \u2014 repeated until stable."
+    },
+    {
+      title:"Why K-Means Struggles with Categories",
+      text:"K-Means can't handle categories like \u201CRed\u201D or \u201CBlue\u201D because there's no way to calculate a mean of them. Averaging only works for numbers."
+    },
+    {
+      title:"K-Modes Clustering",
+      text:"K-Modes solves this by using the mode \u2014 the most frequent category \u2014 instead of a mean, so it can cluster purely categorical data."
+    },
+    {
+      title:"K-Prototypes Clustering",
+      text:"Real data is often mixed: some numeric features, some categorical. K-Prototypes handles both at once, combining mean and mode with a weight (gamma) that balances their influence."
+    },
+    {
+      title:"Clustering Has No \u201CAccuracy\u201D",
+      text:"Because clustering data has no correct labels to begin with, we can't measure \u201Caccuracy\u201D the way we do for KNN \u2014 there's nothing to check the groups against."
+    },
+    {
+      title:"Real-World Uses",
+      text:"Clustering shows up anywhere you want to discover hidden groups: customer segmentation, market research, or grouping viewers by taste \u2014 without knowing the categories in advance."
+    }
+  ];
+
+  var chestClosedSvg =
+    "<svg viewBox='0 0 40 34'><rect x='2' y='14' width='36' height='18' rx='3' fill='#A9762F' stroke='#7A5522' stroke-width='2'/>" +
+    "<path d='M2 14 Q20 0 38 14' fill='#C9A94E' stroke='#7A5522' stroke-width='2'/>" +
+    "<circle cx='20' cy='19' r='3' fill='#7A5522'/></svg>";
+  var chestOpenSvg =
+    "<svg viewBox='0 0 40 34'><rect x='2' y='16' width='36' height='16' rx='3' fill='#D97706' stroke='#92400E' stroke-width='2'/>" +
+    "<path d='M2 16 Q6 2 14 4' fill='none' stroke='#92400E' stroke-width='2'/>" +
+    "<path d='M38 16 Q34 2 26 4' fill='none' stroke='#92400E' stroke-width='2'/>" +
+    "<path d='M10 16 L14 6 L20 16 Z' fill='#FFD700' stroke='#92400E' stroke-width='1.5'/>" +
+    "<path d='M20 16 L26 4 L30 16 Z' fill='#FFE066' stroke='#92400E' stroke-width='1.5'/></svg>";
+
+  var track = document.getElementById("journeyTrack");
+  var opened = STOPS.map(function(){ return false; });
+
+  function updateProgress(){
+    var count = opened.filter(function(v){ return v; }).length;
+    document.getElementById("progressFill").style.width = Math.round((count/STOPS.length)*100) + "%";
+    document.getElementById("progressText").textContent = count + " / " + STOPS.length + " found";
+    if (count === STOPS.length) showCompletion();
+  }
+
+  function toggleStop(idx){
+    var card = document.getElementById("summary" + idx);
+    var btn = document.getElementById("chest" + idx);
+    var wasOpen = card.classList.contains("show");
+    if (!wasOpen){
+      card.classList.add("show");
+      if (!opened[idx]){
+        opened[idx] = true;
+        btn.classList.add("opened");
+        btn.innerHTML = chestOpenSvg + "<span class='chest-num'>\u2713</span>";
+        updateProgress();
+      }
+    } else {
+      card.classList.remove("show");
+    }
+  }
+
+  for (var i=0;i<STOPS.length;i++){
+    (function(idx){
+      var stop = STOPS[idx];
+      var side = idx % 2 === 0 ? "left" : "right";
+      var row = document.createElement("div");
+      row.className = "node-row " + side;
+      row.innerHTML =
+        "<div class='node-col'>" +
+          "<button class='chest-btn' id='chest" + idx + "'>" + chestClosedSvg + "<span class='chest-num'>" + (idx+1) + "</span></button>" +
+          "<div class='node-label'>" + stop.title + "</div>" +
+          "<div class='summary-card' id='summary" + idx + "'>" + stop.text + "</div>" +
+        "</div>";
+      track.appendChild(row);
+      row.querySelector(".chest-btn").addEventListener("click", function(){ toggleStop(idx); });
+    })(i);
+  }
+
+  function showCompletion(){
+    var recapList = document.getElementById("recapList");
+    var html = "";
+    for (var i=0;i<STOPS.length;i++){
+      html +=
+        "<div class='recap-item'>" +
+          "<div><span class='recap-num'>" + (i+1) + "</span><span class='recap-title'>" + STOPS[i].title + "</span></div>" +
+          "<div class='recap-text'>" + STOPS[i].text + "</div>" +
+        "</div>";
+    }
+    recapList.innerHTML = html;
+    var completeCard = document.getElementById("completeCard");
+    completeCard.classList.add("show");
+    completeCard.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }
+
+  document.getElementById("restartBtn").addEventListener("click", function(){
+    opened = STOPS.map(function(){ return false; });
+    for (var i=0;i<STOPS.length;i++){
+      var btn = document.getElementById("chest" + i);
+      btn.classList.remove("opened");
+      btn.innerHTML = chestClosedSvg + "<span class='chest-num'>" + (i+1) + "</span>";
+      document.getElementById("summary" + i).classList.remove("show");
+    }
+    document.getElementById("completeCard").classList.remove("show");
+    updateProgress();
+    window.scrollTo({ top:0, behavior:"smooth" });
+  });
+
+})();
+</script>
+</body>
+</html>
